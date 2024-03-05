@@ -1,0 +1,158 @@
+# Base inference Configuration.
+
+inference:
+  input_pdb: test_data/1qys.pdb
+  num_designs: 10
+  design_startnum: 0
+  ppi_design: False
+  autogenerate_contigs: False
+  symmetry: null
+  recenter: True
+  radius: 10.0
+  model_only_neighbors: False
+  num_recycles: 1
+  recycle_schedule: null
+  softmax_T: 1e-5
+  output_prefix: samples/design
+  scaffold_guided: False
+  model_runner: NRBStyleSelfCond
+  cautious: True
+  recycle_between: False
+  align_motif: True
+  autoregressive_confidence: True
+  no_confidence: True
+  use_jw_selfcond: False
+  symmetric_self_cond: True
+  final_step: 1
+  feed_true_xt: False
+  annotate_termini: True
+  deterministic: False
+  zero_weights: False
+  ligand: null
+  ema: True
+  contig_as_guidepost: False
+  remove_guideposts_from_output: True
+  state_dict_to_load: model_state_dict
+  infer_guidepost_positions: True
+  guidepost_xyz_as_design: True
+  guidepost_xyz_as_design_bb: [False]
+
+contigmap:
+  contigs: ['20', 'A3-23', '30']
+  contig_atoms: null
+  inpaint_str: null
+  inpaint_seq: null
+  length: null
+
+model:
+  n_extra_block: 4
+  n_main_block: 32
+  n_ref_block: 4
+  d_msa: 256
+  d_msa_full: 64
+  d_pair: 128
+  d_templ: 64
+  n_head_msa: 8
+  n_head_pair: 4
+  n_head_templ: 4
+  d_hidden: 32
+  d_hidden_templ: 32
+  p_drop: 0.15
+  SE3_param:
+    num_layers: -1
+    num_channels: -1
+    num_degrees: -1
+    n_heads: -1
+    div: -1
+    l0_in_features: -1
+    l0_out_features: -1
+    l1_in_features: -1
+    l1_out_features: -1
+    num_edge_features: -1
+  SE3_ref_param:
+    n_extra_block: -1
+    n_main_block: -1
+    n_ref_block: -1
+    n_finetune_block: -1
+    d_msa: -1
+    d_msa_full: -1
+    d_pair: -1
+    d_templ: -1
+    n_head_msa: -1
+    n_head_pair: -1
+    n_head_templ: -1
+    d_hidden: -1
+    d_hidden_templ: -1
+    p_drop: -1
+    use_extra_l1: -1
+    use_atom_frames: -1
+    freeze_track_motif: -1
+  freeze_track_motif: False
+  symmetrize_repeats: False
+  repeat_length: null
+  symmsub_k: null
+  sym_method: mean
+  copy_main_block_template: False
+  main_block: null
+
+diffuser:
+  T: 200
+  b_0: 1e-2
+  b_T: 7e-2
+  schedule_type: linear
+  so3_type: igso3
+  aa_decode_steps: 40
+  chi_type: wrapped_normal
+  crd_scale: 0.0667
+  schedule_kwargs: {}
+  partial_T: null    
+  so3_schedule_type: linear
+  min_b: 1.5
+  max_b: 2.5
+  min_sigma: 0.02
+  max_sigma: 1.5
+
+seq_diffuser:
+  s_b0: null
+  s_bT: null
+  schedule_type: null
+  loss_type: null
+  seqdiff: null
+
+denoiser:
+  noise_scale_ca: 1
+  noise_scale_frame: 1
+  noise_scale_torsion: 1
+
+ppi:
+  hotspot_res: null
+  binderlen: null
+
+potentials:
+  guiding_potentials: null 
+  guide_scale: 10
+  guide_decay: constant
+  olig_inter_all : null
+  olig_intra_all : null
+  olig_custom_contact : null
+
+contig_settings:
+  ref_idx: null
+  hal_idx: null
+  idx_rf: null
+  inpaint_seq_tensor: null
+  inpaint_str_tensor: null
+
+preprocess:
+  sidechain_input: False
+  motif_sidechain_input: True
+  sequence_decode: True
+  d_t1d: 22
+  d_t2d: 44
+  prob_self_cond: 0.0
+  str_self_cond: False
+  seq_self_cond: False
+  predict_previous: False
+  
+logging:
+  inputs: False

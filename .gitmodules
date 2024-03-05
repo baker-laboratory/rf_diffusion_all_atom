@@ -1,0 +1,3 @@
+[submodule "lib/rf2aa"]
+	path = lib/rf2aa
+	url = https://github.com/baker-laboratory/RoseTTAFold-All-Atom.git

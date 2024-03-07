@@ -62,3 +62,6 @@ Example (ligand binder with protein motif):
 ```
 /usr/bin/apptainer run --nv rf_se3_diffusion.sif -u run_inference.py inference.deterministic=True diffuser.T=200 inference.output_prefix=output/ligand_protein_motif/sample inference.input_pdb=input/1haz.pdb contigmap.contigs=[\'10-120,A84-87,10-120\'] contigmap.length="150-150" inference.ligand=CYC inference.num_designs=1 inference.design_startnum=0
 ```
+
+An end-to-end design pipeline illustrating the design of heme-binding proteins using RFdiffusionAA, proteinMPNN, AlphaFold2, LigandMPNN and PyRosetta is available at: https://github.com/ikalvet/heme_binder_diffusion
+

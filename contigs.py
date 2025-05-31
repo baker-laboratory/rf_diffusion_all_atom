@@ -1,5 +1,6 @@
 import sys
-import numpy as np 
+import numpy as np
+import torch
 import random
 from icecream import ic
 from collections import OrderedDict
@@ -28,9 +29,11 @@ class ContigMap():
         else:
             self.length = None
         self.ref_idx = ref_idx
+        # Store original inpaint_seq string list for logic
+        self.config_inpaint_seq_str = ','.join(inpaint_seq).split(",") if inpaint_seq is not None else None
         self.hal_idx=hal_idx
         self.idx_rf=idx_rf
-        self.inpaint_seq = ','.join(inpaint_seq).split(",") if inpaint_seq is not None else None
+        # self.inpaint_seq will be defined by the new logic block below
         self.inpaint_str = ','.join(inpaint_str).split(",") if inpaint_str is not None else None
         self.inpaint_seq_tensor=inpaint_seq_tensor
         self.inpaint_str_tensor=inpaint_str_tensor
@@ -56,23 +59,39 @@ class ContigMap():
             self.ref=ref_idx
             self.hal=hal_idx
             self.rf = rf_idx
-        self.mask_1d = [False if i == ('_','_') else True for i in self.ref]
-        #take care of sequence and structure masking
-        if self.inpaint_seq_tensor is None:
-            if self.inpaint_seq is not None:
-                self.inpaint_seq = self.get_inpaint_seq_str(self.inpaint_seq)
-            else:
-                self.inpaint_seq = np.array([True if i != ('_','_') else False for i in self.ref])
-        else:
-            self.inpaint_seq = self.inpaint_seq_tensor
+        self.mask_1d = np.array([False if i == ('_','_') else True for i in self.ref])
 
+        # Define defined_residues_mask (True for actual residues, False for gaps)
+        # Assuming tensors are on CPU for ContigMap, add .to(DEVICE) if device management is introduced
+        defined_residues_mask = torch.from_numpy(self.mask_1d).bool()
+
+        # Corrected logic for self.inpaint_seq (True means MASK for MPN)
+        if self.inpaint_seq_tensor is not None:
+            self.inpaint_seq = torch.as_tensor(self.inpaint_seq_tensor).bool() # Ensure boolean tensor
+        elif self.config_inpaint_seq_str is not None:
+            # User specified inpaint_seq in config strings.
+            # self.get_inpaint_seq_str returns a numpy array where regions from config_inpaint_seq_str are False (should be masked), others True (should be kept).
+            raw_mask_from_config_np = self.get_inpaint_seq_str(self.config_inpaint_seq_str)
+            # Convert to PyTorch tensor, ensure it's boolean. Match device if necessary.
+            raw_mask_from_config = torch.from_numpy(raw_mask_from_config_np).bool().to(defined_residues_mask.device)
+
+            # Regions specified in config (False in raw_mask_from_config) should be masked (True for self.inpaint_seq).
+            # Other defined regions (True in raw_mask_from_config) should not be masked (False for self.inpaint_seq).
+            # So, self.inpaint_seq is True where raw_mask_from_config is False, but only for defined residues.
+            self.inpaint_seq = ~raw_mask_from_config & defined_residues_mask
+        else:
+            # No tensor provided, and no config string for inpaint_seq was provided.
+            # Default behavior: mask all defined residues for MPN.
+            self.inpaint_seq = defined_residues_mask
+
+        # Logic for self.inpaint_str (structure mask) - remains unchanged from previous state
         if self.inpaint_str_tensor is None:
-            if self.inpaint_str is not None:
+            if self.inpaint_str is not None: # This is the string list from constructor
                 self.inpaint_str = self.get_inpaint_seq_str(self.inpaint_str)
             else:
                 self.inpaint_str = np.array([True if i != ('_','_') else False for i in self.ref])
         else:
-            self.inpaint_str = self.inpaint_str_tensor        
+            self.inpaint_str = self.inpaint_str_tensor
         #get 0-indexed input/output (for trb file)
         self.ref_idx0,self.hal_idx0, self.ref_idx0_inpaint, self.hal_idx0_inpaint, self.ref_idx0_receptor, self.hal_idx0_receptor=self.get_idx0()
         self.con_ref_pdb_idx=[i for i in self.ref if i != ('_','_')] 

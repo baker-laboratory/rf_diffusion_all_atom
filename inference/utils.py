@@ -129,15 +129,18 @@ def get_mu_xt_x0(xt, px0, t, beta_schedule, alphabar_schedule, eps=1e-6):
     Given xt, predicted x0 and the timestep t, give mu of x(t-1)
     Assumes t is 0 indexed
     """
-    #sigma is predefined from beta. Often referred to as beta tilde t
     t_idx = t-1
-    sigma = ((1-alphabar_schedule[t_idx-1])/(1-alphabar_schedule[t_idx]))*beta_schedule[t_idx]
+    # ā_{t-1}: at t=1 (t_idx=0) this is ā_0 = 1 (no noise applied yet).
+    # Using alphabar_schedule[t_idx-1] would wrap to ā_T via Python's -1 index.
+    alphabar_t_minus1 = alphabar_schedule[t_idx - 1] if t_idx > 0 else torch.tensor(1.0)
+
+    sigma = ((1 - alphabar_t_minus1) / (1 - alphabar_schedule[t_idx])) * beta_schedule[t_idx]
 
     xt_ca = xt[:,1,:]
     px0_ca = px0[:,1,:]
 
-    a = ((torch.sqrt(alphabar_schedule[t_idx-1] + eps)*beta_schedule[t_idx])/(1-alphabar_schedule[t_idx]))*px0_ca
-    b = ((torch.sqrt(1-beta_schedule[t_idx] + eps)*(1-alphabar_schedule[t_idx-1]))/(1-alphabar_schedule[t_idx]))*xt_ca
+    a = ((torch.sqrt(alphabar_t_minus1 + eps) * beta_schedule[t_idx]) / (1 - alphabar_schedule[t_idx])) * px0_ca
+    b = ((torch.sqrt(1 - beta_schedule[t_idx] + eps) * (1 - alphabar_t_minus1)) / (1 - alphabar_schedule[t_idx])) * xt_ca
 
     mu = a + b
 
@@ -174,7 +177,7 @@ def get_next_ca(xt, px0, t, diffusion_mask, crd_scale, beta_schedule, alphabar_s
     # get mu(xt, x0)
     mu, sigma = get_mu_xt_x0(xt, px0, t, beta_schedule=beta_schedule, alphabar_schedule=alphabar_schedule)
 
-    sampled_crds = torch.normal(mu, torch.sqrt(sigma*noise_scale))
+    sampled_crds = torch.normal(mu, torch.sqrt(torch.clamp(sigma * noise_scale, min=1e-10)))
     delta = sampled_crds - xt[:,1,:] #check sign of this is correct
 
     if not diffusion_mask is None:

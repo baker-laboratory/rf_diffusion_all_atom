@@ -26,8 +26,13 @@ def igso3_expansion(omega, sigma, L=L_default):
         L: Truncation level
     """
     p = 0
+    # sin(omega*(l+1/2)) / sin(omega/2) -> 2l+1 as omega -> 0 (L'Hopital).
+    # Use the limit below threshold to avoid 0/0 numerical instability.
+    small = np.abs(omega) < 1e-5
+    safe_sin_half = np.where(small, 1.0, np.sin(omega / 2))
     for l in range(L):
-        p += (2*l + 1) * np.exp(-l*(l+1)*sigma**2/2) * np.sin(omega*(l+1/2)) / np.sin(omega/2)
+        ratio = np.where(small, 2*l + 1, np.sin(omega * (l + 0.5)) / safe_sin_half)
+        p += (2*l + 1) * np.exp(-l*(l+1)*sigma**2/2) * ratio
     return p
 
 def igso3_expansion_torch(omega, sigma, L=L_default):
@@ -39,8 +44,11 @@ def igso3_expansion_torch(omega, sigma, L=L_default):
         L: Truncation level
     """
     p = 0
+    small = omega.abs() < 1e-5
+    safe_sin_half = torch.where(small, torch.ones_like(omega), torch.sin(omega / 2))
     for l in range(L):
-        p += (2*l + 1) * torch.exp(-l*(l+1)*sigma**2/2) * torch.sin(omega*(l+1/2)) / torch.sin(omega/2)
+        ratio = torch.where(small, torch.full_like(omega, 2*l + 1), torch.sin(omega * (l + 0.5)) / safe_sin_half)
+        p += (2*l + 1) * torch.exp(-l*(l+1)*sigma**2/2) * ratio
     return p
 
 
@@ -87,13 +95,20 @@ def calc_score_norm(exp, omega, sigma, L=L_default):  # score of density over SO
         The d/d omega log IGSO3(omega; sigma)/(1-cos(omega))
 
     """
+    # d/d_omega [sin(omega*(l+1/2)) / sin(omega/2)]
+    # Near omega=0: limit of quotient rule gives (l+1/2)^2 - (l+1/2)*(0) / 1 -> (l+1/2)^2 - 1/4*(2l+1)
+    # Use safe denominator to avoid 0/0.
+    small = np.abs(omega) < 1e-5
+    safe_lo = np.where(small, 1.0, np.sin(omega / 2))
     dSigma = 0
     for l in range(L):
         hi = np.sin(omega * (l + 1 / 2))
         dhi = (l + 1 / 2) * np.cos(omega * (l + 1 / 2))
-        lo = np.sin(omega / 2)
+        lo = safe_lo
         dlo = 1 / 2 * np.cos(omega / 2)
-        dSigma += (2 * l + 1) * np.exp(-l * (l + 1) * sigma**2/2) * (lo * dhi - hi * dlo) / lo ** 2
+        # quotient-rule derivative; at omega->0 the limit is (l+1/2)^2 - (1/4)*(2l+1)
+        d_ratio = np.where(small, (l + 0.5)**2 - 0.25*(2*l + 1), (lo * dhi - hi * dlo) / lo ** 2)
+        dSigma += (2 * l + 1) * np.exp(-l * (l + 1) * sigma**2/2) * d_ratio
     return dSigma / exp
 
 def calc_score_norm_torch(omega, sigma, L=L_default):  # score of density over SO(3)

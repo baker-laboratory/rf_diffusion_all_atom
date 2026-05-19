@@ -58,7 +58,7 @@ def get_chi_betaT(max_timestep=100, beta_0=0.01, abar_T=1e-3, method='cosine'):
         if method not in ['cosine', 'linear']:
             raise NotImplementedError("Only cosine and linear interpolations are implemented for chi angle beta schedule")
         beta_Ts = {1:1.}
-        for timestep in range(2,101):
+        for timestep in range(2, max_timestep+1):
             best=999.99
             for i in torch.linspace(beta_0,0.999,5000): #sampling bT
                 if method == 'cosine':
@@ -66,8 +66,9 @@ def get_chi_betaT(max_timestep=100, beta_0=0.01, abar_T=1e-3, method='cosine'):
                 elif method == 'linear':
                     interp = torch.linspace(beta_0, i, timestep)
                 temp = torch.cumprod(1-interp, dim=0)
-                if torch.abs(temp[-1] - abar_T) < best:
-                    best = temp[-1] - abar_T
+                abs_err = torch.abs(temp[-1] - abar_T).item()
+                if abs_err < best:
+                    best = abs_err
                     idx = i
             beta_Ts[timestep] = idx.item()
 
@@ -465,7 +466,6 @@ class IGSO3():
         all_score_norm = []
         for i, t in enumerate(ts):
             omega_t = omega[i]
-            t_idx = t-1 
             sigma_idx = self.t_to_idx(t)
             score_norm_t = np.interp(
                 omega_t,
@@ -597,7 +597,7 @@ class IGSO3():
         # implicitly provides a roughly linear scaling in the size of the 
         # update of the  rotation with the distance of r_0 to 
         omega = torch.linalg.norm(r_0t_rotvec).numpy()
-        score_approx = r_0t_rotvec*self.score_norm(t, omega)/omega  
+        score_approx = r_0t_rotvec * self.score_norm(t, omega) / (omega + 1e-8)
 
         # Compute scaling for score and sampled noise (following Eq 6 of [2])
         continuous_t = t/self.T
